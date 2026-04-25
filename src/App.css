@@ -1,0 +1,110 @@
+.gap-analysis {
+  background: #222;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  text-align: left;
+  border: 1px solid #444;
+}
+
+.gap-analysis h3 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: #888;
+}
+
+.unresolved-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.warning-item {
+  color: #ffcc00;
+  margin-bottom: 0.5rem;
+}
+
+.success-msg {
+  color: #00ff66;
+  margin: 0;
+}
+
+header {
+  border-bottom: 2px solid var(--primary-color);
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+}
+
+.anchor-text {
+  font-style: italic;
+  color: #aaa;
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.stages-container {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+}
+
+.stage-column {
+  flex: 1;
+  min-width: 200px;
+  background: #333;
+  padding: 1rem;
+  border-radius: 8px;
+  min-height: 400px;
+}
+
+.article-card {
+  background: #444;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  text-align: left;
+  border-left: 4px solid var(--primary-color);
+}
+
+.card-footer {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lexicon-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.lexicon-tag {
+  font-size: 0.7rem;
+  background: #555;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  color: var(--primary-color);
+}
+
+.article-card h4 {
+  margin-top: 0;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  background: var(--primary-color);
+  border: none;
+  color: white;
+  border-radius: 4px;
+}
+
+button:hover {
+  opacity: 0.9;
+}

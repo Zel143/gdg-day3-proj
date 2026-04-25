@@ -1,0 +1,70 @@
+.submission-form {
+  max-width: 600px;
+  margin: 0 auto;
+  text-align: left;
+  background: #333;
+  padding: 2rem;
+  border-radius: 8px;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.form-group input, 
+.form-group select, 
+.form-group textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #555;
+  background: #222;
+  color: white;
+}
+
+.lexicon-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.lexicon-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #444;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.lexicon-item.selected {
+  border-color: var(--primary-color);
+  background: #555;
+}
+
+.lexicon-item input {
+  width: auto;
+}
+
+.error-msg {
+  color: #ff4444;
+  background: rgba(255, 68, 68, 0.1);
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
