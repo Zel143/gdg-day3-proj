@@ -1,0 +1,311 @@
+.canon-integrity {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 28px;
+  backdrop-filter: blur(20px);
+  margin-bottom: 3rem;
+  overflow: hidden;
+}
+
+.integrity-header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.integrity-header h3 {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-size: 0.85rem;
+  color: var(--primary-color);
+}
+
+.mode-revelation .integrity-header h3 {
+  color: var(--sacred-gold);
+}
+
+.integrity-body {
+  padding: 2rem;
+}
+
+/* Score Ring */
+.score-ring {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 2rem;
+}
+
+.ring-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ring-progress {
+  transition: stroke-dasharray 1.2s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.score-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+}
+
+.score-grade {
+  font-size: 2.2rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.score-number {
+  font-size: 0.7rem;
+  color: #888;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+/* Stats Row */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+  padding: 1.25rem;
+  background: rgba(0,0,0,0.15);
+  border-radius: 20px;
+  border: 1px solid var(--glass-border);
+}
+
+.stat-item {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: white;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #666;
+}
+
+/* Metric Bars */
+.metrics-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.metric-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.metric-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.metric-bar-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #888;
+}
+
+.metric-bar-value {
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.metric-bar-track {
+  height: 6px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.metric-bar-fill {
+  height: 100%;
+  border-radius: 100px;
+  transition: width 1s cubic-bezier(0.23, 1, 0.32, 1);
+  box-shadow: 0 0 12px rgba(255,255,255,0.1);
+}
+
+/* Stage Distribution */
+.stage-distribution {
+  margin-bottom: 2rem;
+}
+
+.stage-distribution h4,
+.stage-flow h4,
+.lexicon-health h4 {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+}
+
+.distribution-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.dist-bar-row {
+  display: grid;
+  grid-template-columns: 24px 100px 1fr 32px;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dist-icon {
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.dist-label {
+  font-size: 0.75rem;
+  color: #999;
+  letter-spacing: 0.5px;
+}
+
+.dist-track {
+  height: 8px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.dist-fill {
+  height: 100%;
+  border-radius: 100px;
+  transition: width 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+  min-width: 4px;
+}
+
+.dist-count {
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+/* Stage Flow */
+.stage-flow {
+  padding: 1.25rem;
+  background: rgba(0,0,0,0.1);
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  margin-bottom: 2rem;
+}
+
+.flow-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.flow-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255,255,255,0.02);
+  border-radius: 12px;
+}
+
+.flow-from, .flow-to {
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.flow-arrow {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.flow-count {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: #666;
+  font-weight: 700;
+  background: rgba(255,255,255,0.05);
+  padding: 0.15rem 0.5rem;
+  border-radius: 100px;
+}
+
+/* Lexicon Health */
+.lexicon-health-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.lexicon-health-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,0.02);
+  transition: all 0.3s ease;
+}
+
+.lexicon-health-item.active {
+  border-color: rgba(0,242,255,0.2);
+  background: rgba(0,242,255,0.03);
+}
+
+.lexicon-health-item.dormant {
+  opacity: 0.5;
+}
+
+.lh-term {
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--primary-color);
+}
+
+.mode-revelation .lh-term {
+  color: var(--sacred-gold);
+}
+
+.lh-count {
+  font-size: 0.65rem;
+  color: #4ecdc4;
+  font-weight: 600;
+}
+
+.lh-count.zero {
+  color: #555;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dist-bar-row {
+    grid-template-columns: 24px 70px 1fr 28px;
+  }
+}

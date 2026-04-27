@@ -14,6 +14,8 @@ export interface LexiconTerm {
 export interface Thought {
   id: string;
   text: string;
+  refinedText?: string; // AI-refined version aligned with canon tone
+  assignedStage?: NarrativeStage; // AI-assigned stage for this individual thought
   lexiconTermId?: string; // Optional anchor to a specific term
 }
 

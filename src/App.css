@@ -235,6 +235,32 @@ nav button.active {
   color: var(--sacred-gold);
 }
 
+/* Per-Thought Stage Badges */
+.verse-meta {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.3rem;
+}
+
+.verse-stage {
+  display: inline-block;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 0.15rem 0.5rem;
+  border-radius: 100px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,0.03);
+}
+
+.verse-stage.stage-genesis { border-color: #4ecdc4; color: #4ecdc4; }
+.verse-stage.stage-leviticus { border-color: #a78bfa; color: #a78bfa; }
+.verse-stage.stage-lamentations { border-color: #ff6b6b; color: #ff6b6b; }
+.verse-stage.stage-gospels { border-color: #ffd93d; color: #ffd93d; }
+.verse-stage.stage-revelation { border-color: #6bcb77; color: #6bcb77; }
+
 /* --- GAP ANALYSIS --- */
 .gap-analysis {
   background: rgba(255, 68, 68, 0.03);
@@ -305,17 +331,47 @@ nav button.active {
   border-radius: 16px;
   border: 1px solid var(--glass-border);
   text-align: left;
+  transition: all 0.3s ease;
+}
+
+.lexicon-card.lexicon-active {
+  border-color: rgba(0,242,255,0.15);
+}
+
+.lexicon-card.lexicon-dormant {
+  opacity: 0.55;
+}
+
+.lexicon-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
 }
 
 .term-name {
   color: var(--primary-color);
   font-weight: 800;
   font-size: 0.9rem;
-  display: block;
-  margin-bottom: 0.5rem;
 }
 
 .mode-revelation .term-name { color: var(--sacred-gold); }
+
+.term-usage {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #4ecdc4;
+  background: rgba(78,205,196,0.08);
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+}
+
+.term-usage.zero {
+  color: #555;
+  background: rgba(255,255,255,0.03);
+}
 
 .term-def {
   font-size: 0.75rem;
@@ -323,6 +379,92 @@ nav button.active {
   margin: 0;
   line-height: 1.4;
 }
+
+/* Card Lineage / Provenance */
+.card-lineage {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  background: rgba(255,215,0,0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255,215,0,0.08);
+}
+
+.lineage-label {
+  font-size: 0.65rem;
+}
+
+.lineage-title {
+  font-size: 0.65rem;
+  color: var(--sacred-gold);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+/* Card Footer */
+.card-footer {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.card-footer small {
+  font-size: 0.7rem;
+  color: #666;
+}
+
+/* Witness Focus States */
+.active-witness {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 20px rgba(0,242,255,0.15);
+}
+
+.linked-witness {
+  border-color: var(--sacred-gold) !important;
+  box-shadow: 0 0 15px rgba(255,215,0,0.1);
+}
+
+.dimmed-witness {
+  opacity: 0.3;
+}
+
+/* Loading */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 1.5rem;
+}
+
+.loading-container p {
+  font-size: 0.85rem;
+  color: #666;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.loader {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--glass-border);
+  border-top: 3px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
   .stages-container {
     grid-template-columns: repeat(3, 1fr);
   }

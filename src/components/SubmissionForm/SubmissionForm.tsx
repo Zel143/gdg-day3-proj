@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NarrativeStage, LexiconTerm, Article, Thought } from '../../types';
-import { validateSubmission } from '../../lib/gemini';
+import { analyzeAndRefine, AnalysisResult, ThoughtAnalysis } from '../../lib/gemini';
 import './SubmissionForm.css';
 
 interface Props {
@@ -10,17 +10,30 @@ interface Props {
   onSubmit: (article: Article) => void;
 }
 
+const STAGE_META: Record<NarrativeStage, { icon: string; label: string; color: string }> = {
+  Genesis:      { icon: '🌱', label: 'Foundation',   color: '#4ecdc4' },
+  Leviticus:    { icon: '⚖️', label: 'Protocol',     color: '#a78bfa' },
+  Lamentations: { icon: '💎', label: 'Friction',     color: '#ff6b6b' },
+  Gospels:      { icon: '🕯️', label: 'Coherence',    color: '#ffd93d' },
+  Revelation:   { icon: '🚪', label: 'Convergence',  color: '#6bcb77' },
+};
+
+const getConfidenceColor = (c: number): string => {
+  if (c >= 85) return '#00ff66';
+  if (c >= 70) return '#4ecdc4';
+  if (c >= 50) return '#ffd93d';
+  if (c >= 30) return '#ff9f43';
+  return '#ff6b6b';
+};
+
 export const SubmissionForm: React.FC<Props> = ({ anchor, lexicon, existingArticles, onSubmit }) => {
-  const [stage, setStage] = useState<NarrativeStage>('Genesis');
   const [title, setTitle] = useState('');
   const [thoughts, setThoughts] = useState<Thought[]>([{ id: crypto.randomUUID(), text: '' }]);
   const [author, setAuthor] = useState('');
-  const [linkedStruggleId, setLinkedStruggleId] = useState('');
   const [error, setError] = useState('');
-  const [isValidating, setIsValidating] = useState(false);
-  const [aiFeedback, setAiFeedback] = useState<{ verdict: string; feedback: string; suggestedEdits?: string } | null>(null);
-
-  const struggles = existingArticles.filter(a => a.stage === 'Lamentations');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [useRefined, setUseRefined] = useState(true);
 
   const addThought = () => {
     setThoughts([...thoughts, { id: crypto.randomUUID(), text: '' }]);
@@ -36,62 +49,97 @@ export const SubmissionForm: React.FC<Props> = ({ anchor, lexicon, existingArtic
     }
   };
 
-  const handleValidateAndSubmit = async (e: React.FormEvent) => {
+  const handleRevealTruth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setAiFeedback(null);
+    setAnalysis(null);
     
+    if (!title.trim()) {
+      setError('Every witness needs a title.');
+      return;
+    }
+
     if (thoughts.some(t => t.text.trim() === '')) {
       setError('All thoughts must contain text to be witnessed.');
       return;
     }
 
-    if ((stage === 'Gospels' || stage === 'Revelation') && struggles.length > 0 && !linkedStruggleId) {
-      setError(`Stage ${stage} should be linked to a specific Struggle (Lamentations) if one exists.`);
+    if (!author.trim()) {
+      setError('A witness must bear a name.');
       return;
     }
 
-    setIsValidating(true);
-    // Combine thoughts for AI validation
-    const combinedContent = thoughts.map((t, i) => `Verse ${i + 1}: ${t.text}`).join('\n');
-    const validation = await validateSubmission(combinedContent, anchor, lexicon, existingArticles);
-    setIsValidating(false);
-    setAiFeedback(validation);
+    setIsAnalyzing(true);
+    try {
+      const result = await analyzeAndRefine(thoughts, title, anchor, lexicon, existingArticles);
+      setAnalysis(result);
+    } catch (err) {
+      setError('The Guardian encountered an error. Please try again.');
+    }
+    setIsAnalyzing(false);
   };
 
   const finalSubmit = () => {
+    if (!analysis) return;
+
+    // Build thoughts with AI metadata baked in
+    const enrichedThoughts: Thought[] = thoughts.map((thought, i) => {
+      const ai = analysis.thoughtAnalysis[i];
+      return {
+        ...thought,
+        refinedText: ai?.refinedText || thought.text,
+        assignedStage: (ai?.assignedStage as NarrativeStage) || analysis.primaryStage,
+      };
+    });
+
     const newArticle: Article = {
       id: crypto.randomUUID(),
       title,
-      thoughts,
-      stage,
-      lexiconTerms: Array.from(new Set(thoughts.filter(t => t.lexiconTermId).map(t => t.lexiconTermId!) as string[])),
-      linkedStruggleId: linkedStruggleId || undefined,
+      thoughts: useRefined 
+        ? enrichedThoughts.map(t => ({ ...t, text: t.refinedText || t.text }))
+        : enrichedThoughts,
+      stage: analysis.primaryStage,
+      lexiconTerms: Array.from(new Set(
+        thoughts.filter(t => t.lexiconTermId).map(t => t.lexiconTermId!) as string[]
+      )),
+      linkedStruggleId: analysis.linkedStruggleId || undefined,
       author,
       createdAt: Date.now()
     };
+
     onSubmit(newArticle);
+    
+    // Reset form
+    setTitle('');
+    setThoughts([{ id: crypto.randomUUID(), text: '' }]);
+    setAuthor('');
+    setAnalysis(null);
+    setUseRefined(true);
   };
+
+  const hasContradictions = analysis && (
+    analysis.contradictions.length > 0 || 
+    analysis.thoughtAnalysis.some(ta => ta.contradictions.length > 0)
+  );
 
   return (
     <div className="submission-container">
-      <form className="submission-form" onSubmit={handleValidateAndSubmit}>
+      <form className="submission-form" onSubmit={handleRevealTruth}>
         {error && <p className="error-msg">{error}</p>}
         
-        <div className="form-group">
-          <label>Narrative Stage</label>
-          <select value={stage} onChange={(e) => setStage(e.target.value as NarrativeStage)}>
-            <option value="Genesis">Genesis (Origin)</option>
-            <option value="Leviticus">Leviticus (Law)</option>
-            <option value="Lamentations">Lamentations (Struggle)</option>
-            <option value="Gospels">Gospels (Resolution)</option>
-            <option value="Revelation">Revelation (Future)</option>
-          </select>
+        <div className="form-hint">
+          <span className="hint-icon">✦</span>
+          <p>Write freely in any style — casual, poetic, technical, emotional. The Guardian will see through the narrative and reveal the truth of each thought.</p>
         </div>
 
         <div className="form-group">
           <label>Title</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="The heading of this Witness..." />
+          <input 
+            value={title} 
+            onChange={(e) => setTitle(e.target.value)} 
+            required 
+            placeholder="The heading of this Witness..." 
+          />
         </div>
 
         <div className="form-group">
@@ -104,7 +152,7 @@ export const SubmissionForm: React.FC<Props> = ({ anchor, lexicon, existingArtic
                   <textarea 
                     value={thought.text} 
                     onChange={(e) => updateThought(thought.id, e.target.value, thought.lexiconTermId)}
-                    placeholder="Enter a distinct thought or observation..."
+                    placeholder="Speak your truth in any way that feels natural..."
                     rows={3}
                     required
                   />
@@ -125,42 +173,191 @@ export const SubmissionForm: React.FC<Props> = ({ anchor, lexicon, existingArtic
 
         <div className="form-group">
           <label>Author</label>
-          <input value={author} onChange={(e) => setAuthor(e.target.value)} required placeholder="Who bears this Witness?" />
+          <input 
+            value={author} 
+            onChange={(e) => setAuthor(e.target.value)} 
+            required 
+            placeholder="Who bears this Witness?" 
+          />
         </div>
 
-        {(stage === 'Gospels' || stage === 'Revelation') && (
-          <div className="form-group">
-            <label>Link to Struggle (Lamentations)</label>
-            {struggles.length > 0 ? (
-              <select value={linkedStruggleId} onChange={(e) => setLinkedStruggleId(e.target.value)} required>
-                <option value="">-- Select a Struggle to Resolve --</option>
-                {struggles.map(s => (
-                  <option key={s.id} value={s.id}>{s.title}</option>
-                ))}
-              </select>
-            ) : (
-              <p className="info-msg"><i>No active Struggles (Lamentations) found. This Witness will be recorded as a General Resolution.</i></p>
-            )}
-          </div>
-        )}
-
-        <button type="submit" className="submit-btn" disabled={isValidating}>
-          {isValidating ? 'Guardian is reviewing the chain...' : 'Review with AI'}
+        <button type="submit" className="submit-btn" disabled={isAnalyzing}>
+          {isAnalyzing ? (
+            <span className="analyzing-text">
+              <span className="pulse-dot"></span>
+              Guardian is revealing the truth...
+            </span>
+          ) : (
+            '✦ Reveal Truth'
+          )}
         </button>
       </form>
 
-      {aiFeedback && (
-        <div className={`ai-feedback-panel ${aiFeedback.verdict.toLowerCase()}`}>
-          <h3>Guardian Verdict: {aiFeedback.verdict}</h3>
-          <p style={{ whiteSpace: 'pre-line' }}>{aiFeedback.feedback}</p>
-          {aiFeedback.suggestedEdits && (
+      {/* ========================= */}
+      {/* THE REVELATION PANEL v2   */}
+      {/* ========================= */}
+      {analysis && (
+        <div className="revelation-panel">
+          <div className="revelation-header">
+            <div className="revelation-title">
+              <h3>The Truth Revealed</h3>
+              <span className={`verdict-badge ${analysis.verdict === 'APPROVED' ? 'approved' : 'revision'}`}>
+                {analysis.verdict === 'APPROVED' ? '✓ ' : '⟳ '}{analysis.verdict}
+              </span>
+            </div>
+            
+            {/* Coherence + Primary Stage */}
+            <div className="revelation-scores">
+              <div className="detected-stage">
+                <span className="detected-label">Primary Stage:</span>
+                <span className={`stage-badge stage-${analysis.primaryStage.toLowerCase()}`}>
+                  {STAGE_META[analysis.primaryStage]?.icon} {analysis.primaryStage} — {STAGE_META[analysis.primaryStage]?.label}
+                </span>
+              </div>
+              <div className="coherence-display">
+                <span className="detected-label">Canon Coherence:</span>
+                <div className="coherence-bar-container">
+                  <div className="coherence-bar-track">
+                    <div 
+                      className="coherence-bar-fill" 
+                      style={{ 
+                        width: `${analysis.coherenceScore}%`,
+                        background: getConfidenceColor(analysis.coherenceScore)
+                      }}
+                    />
+                  </div>
+                  <span className="coherence-value" style={{ color: getConfidenceColor(analysis.coherenceScore) }}>
+                    {analysis.coherenceScore}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Auto-Linked Struggle */}
+            {analysis.linkedStruggleId && (
+              <div className="auto-linked">
+                <span className="linked-label">🔗 Auto-linked to Struggle:</span>
+                <span className="linked-value">
+                  {existingArticles.find(a => a.id === analysis.linkedStruggleId)?.title || analysis.linkedStruggleId}
+                </span>
+              </div>
+            )}
+
+            {/* System-level Contradictions */}
+            {hasContradictions && (
+              <div className="contradictions-alert">
+                <h4>⚠️ Contradictions Detected</h4>
+                {analysis.contradictions.map((c, i) => (
+                  <p key={i} className="contradiction-item">{c}</p>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Per-Thought Deep Breakdown */}
+          <div className="thought-breakdown">
+            <h4>Verse-by-Verse Deep Analysis</h4>
+            {analysis.thoughtAnalysis.map((ta: ThoughtAnalysis, i: number) => (
+              <div key={i} className={`verse-analysis ${ta.contradictions.length > 0 ? 'has-contradiction' : ''}`}>
+                <div className="verse-analysis-header">
+                  <span className="verse-idx">Verse {i + 1}</span>
+                  <div className="verse-header-right">
+                    {/* Confidence Score */}
+                    <div className="confidence-indicator">
+                      <span className="confidence-label">Confidence</span>
+                      <div className="confidence-bar-mini">
+                        <div 
+                          className="confidence-fill-mini"
+                          style={{ width: `${ta.confidence}%`, background: getConfidenceColor(ta.confidence) }}
+                        />
+                      </div>
+                      <span className="confidence-value" style={{ color: getConfidenceColor(ta.confidence) }}>
+                        {ta.confidence}%
+                      </span>
+                    </div>
+                    <span className={`stage-pill stage-${ta.assignedStage.toLowerCase()}`}>
+                      {STAGE_META[ta.assignedStage as NarrativeStage]?.icon} {ta.assignedStage}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Original → Refined Comparison */}
+                <div className="verse-comparison">
+                  <div className="verse-original">
+                    <small>Original</small>
+                    <p>{ta.originalText}</p>
+                  </div>
+                  <div className="verse-arrow">→</div>
+                  <div className="verse-refined">
+                    <small>Refined</small>
+                    <p>{ta.refinedText}</p>
+                  </div>
+                </div>
+
+                {/* Classification Reason */}
+                <p className="verse-reason"><em>{ta.reason}</em></p>
+
+                {/* Per-thought contradictions */}
+                {ta.contradictions.length > 0 && (
+                  <div className="verse-contradictions">
+                    {ta.contradictions.map((c, j) => (
+                      <p key={j} className="verse-contradiction-item">⚡ {c}</p>
+                    ))}
+                  </div>
+                )}
+
+                {/* Suggested Lexicon Terms */}
+                {ta.suggestedLexiconTerms.length > 0 && (
+                  <div className="verse-lexicon-suggest">
+                    <span className="lexicon-suggest-label">Suggested anchors:</span>
+                    {ta.suggestedLexiconTerms.map((term, j) => (
+                      <span key={j} className="lexicon-suggest-tag">#{term}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Canon Alignment */}
+          <div className="canon-alignment">
+            <h4>Canon Alignment Analysis</h4>
+            <p>{analysis.canonAlignment}</p>
+          </div>
+
+          {/* Suggested Edits */}
+          {analysis.suggestedEdits && (
             <div className="suggested-edits">
-              <h4>Suggested Refinement:</h4>
-              <p><i>{aiFeedback.suggestedEdits}</i></p>
+              <h4>Suggested Refinement</h4>
+              <p><i>{analysis.suggestedEdits}</i></p>
             </div>
           )}
-          {aiFeedback.verdict === 'APPROVED' && (
-            <button onClick={finalSubmit} className="publish-btn">Final Publish to Canon</button>
+
+          {/* Final Actions */}
+          {analysis.verdict === 'APPROVED' && (
+            <div className="final-actions">
+              <div className="text-toggle">
+                <span className={!useRefined ? 'toggle-active' : ''}>Original Voice</span>
+                <button 
+                  type="button" 
+                  className={`refined-toggle ${useRefined ? 'active' : ''}`}
+                  onClick={() => setUseRefined(!useRefined)}
+                >
+                  <span className="toggle-knob"></span>
+                </button>
+                <span className={useRefined ? 'toggle-active' : ''}>Canonical Voice</span>
+              </div>
+              <button onClick={finalSubmit} className="publish-btn">
+                ✦ Seal into Canon
+              </button>
+            </div>
+          )}
+
+          {/* Revision Required — can't publish */}
+          {analysis.verdict === 'REVISION REQUIRED' && (
+            <div className="revision-notice">
+              <p>The Guardian requires revisions before this witness may enter the Canon. Address the contradictions and concerns above, then re-submit.</p>
+            </div>
           )}
         </div>
       )}

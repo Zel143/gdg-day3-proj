@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import './App.css'
 import { CanonState, Article } from './types'
 import { SubmissionForm } from './components/SubmissionForm/SubmissionForm'
+import { CanonIntegrity } from './components/CanonIntegrity/CanonIntegrity'
 import { syncCanon, updateCanon } from './lib/supabase'
 
 function App() {
@@ -22,7 +23,22 @@ function App() {
   useEffect(() => {
     const unsubscribe = syncCanon((remoteState) => {
       if (remoteState) {
-        setState(remoteState);
+        // Data Migration: Ensure all articles have the 'thoughts' array
+        const migratedArticles = (remoteState.articles || []).map((a: any) => {
+          if (a.content && !a.thoughts) {
+            return {
+              ...a,
+              thoughts: [{ id: 'legacy-1', text: a.content }],
+              content: undefined // Remove old field
+            };
+          }
+          return a;
+        });
+
+        setState({
+          ...remoteState,
+          articles: migratedArticles
+        });
       }
       setIsLoading(false);
     });
@@ -57,6 +73,20 @@ function App() {
   const handleArticleClick = (id: string) => {
     setFocusedId(prev => prev === id ? null : id);
   };
+
+  // Compute lexicon usage counts for display
+  const lexiconUsageCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    state.lexicon.forEach(l => counts.set(l.id, 0));
+    state.articles.forEach(a => {
+      a.thoughts.forEach(t => {
+        if (t.lexiconTermId && counts.has(t.lexiconTermId)) {
+          counts.set(t.lexiconTermId, (counts.get(t.lexiconTermId) || 0) + 1);
+        }
+      });
+    });
+    return counts;
+  }, [state]);
 
   if (isLoading) {
     return (
@@ -116,28 +146,28 @@ function App() {
                 </button>
               </div>
               <div className="lexicon-grid">
-                {state.lexicon.map(l => (
-                  <div key={l.id} className="lexicon-card">
-                    <span className="term-name">#{l.term}</span>
-                    <p className="term-def">{l.definition}</p>
-                  </div>
-                ))}
+                {state.lexicon.map(l => {
+                  const usage = lexiconUsageCounts.get(l.id) || 0;
+                  return (
+                    <div key={l.id} className={`lexicon-card ${usage > 0 ? 'lexicon-active' : 'lexicon-dormant'}`}>
+                      <div className="lexicon-card-header">
+                        <span className="term-name">#{l.term}</span>
+                        <span className={`term-usage ${usage > 0 ? '' : 'zero'}`}>
+                          {usage > 0 ? `${usage} ref${usage > 1 ? 's' : ''}` : 'unused'}
+                        </span>
+                      </div>
+                      <p className="term-def">{l.definition}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
+            {/* Canon Integrity Dashboard */}
+            <CanonIntegrity state={state} revelationMode={revelationMode} />
+
             <div className="dashboard-header">
               <h2>{revelationMode ? 'The Sacred Map' : 'System Canon Map'}</h2>
-              <div className="coherence-meter">
-                <span className="meter-label">{revelationMode ? 'Fullness:' : 'System Integrity:'}</span>
-                <span className="meter-value">
-                  {(() => {
-                    const struggles = state.articles.filter(a => a.stage === 'Lamentations').length;
-                    const resolutions = state.articles.filter(a => a.stage === 'Gospels').length;
-                    if (struggles === 0) return resolutions > 0 ? '100%' : '0%';
-                    return Math.round((resolutions / struggles) * 100) + '%';
-                  })()}
-                </span>
-              </div>
             </div>
             
             <div className="gap-analysis">
@@ -200,17 +230,33 @@ function App() {
                           {article.thoughts.map((thought, i) => (
                             <div key={thought.id} className="verse-item">
                               <span className="verse-num">{i + 1}</span>
-                              <p className="verse-text">{thought.text}</p>
-                              {thought.lexiconTermId && (
-                                <span className="verse-lexicon">
-                                  #{state.lexicon.find(l => l.id === thought.lexiconTermId)?.term}
-                                </span>
-                              )}
+                              <p className="verse-text">{thought.refinedText || thought.text}</p>
+                              <div className="verse-meta">
+                                {thought.assignedStage && (
+                                  <span className={`verse-stage stage-${thought.assignedStage.toLowerCase()}`}>
+                                    {thought.assignedStage}
+                                  </span>
+                                )}
+                                {thought.lexiconTermId && (
+                                  <span className="verse-lexicon">
+                                    #{state.lexicon.find(l => l.id === thought.lexiconTermId)?.term}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>
                         <div className="card-footer">
                           <small>{revelationMode ? 'Witnessed by:' : 'Author:'} {article.author}</small>
+                          {article.linkedStruggleId && (() => {
+                            const linked = state.articles.find(a => a.id === article.linkedStruggleId);
+                            return linked ? (
+                              <div className="card-lineage">
+                                <span className="lineage-label">🔗</span>
+                                <span className="lineage-title">{linked.title}</span>
+                              </div>
+                            ) : null;
+                          })()}
                         </div>
                       </div>
                     );
