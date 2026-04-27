@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NarrativeStage, LexiconTerm, Article } from '../../types';
+import { NarrativeStage, LexiconTerm, Article, Thought } from '../../types';
 import { validateSubmission } from '../../lib/gemini';
 import './SubmissionForm.css';
 
@@ -13,9 +13,8 @@ interface Props {
 export const SubmissionForm: React.FC<Props> = ({ anchor, lexicon, existingArticles, onSubmit }) => {
   const [stage, setStage] = useState<NarrativeStage>('Genesis');
   const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const [thoughts, setThoughts] = useState<Thought[]>([{ id: crypto.randomUUID(), text: '' }]);
   const [author, setAuthor] = useState('');
-  const [selectedLexicon, setSelectedLexicon] = useState<string[]>([]);
   const [linkedStruggleId, setLinkedStruggleId] = useState('');
   const [error, setError] = useState('');
   const [isValidating, setIsValidating] = useState(false);
@@ -23,51 +22,55 @@ export const SubmissionForm: React.FC<Props> = ({ anchor, lexicon, existingArtic
 
   const struggles = existingArticles.filter(a => a.stage === 'Lamentations');
 
+  const addThought = () => {
+    setThoughts([...thoughts, { id: crypto.randomUUID(), text: '' }]);
+  };
+
+  const updateThought = (id: string, text: string, lexiconTermId?: string) => {
+    setThoughts(thoughts.map(t => t.id === id ? { ...t, text, lexiconTermId } : t));
+  };
+
+  const removeThought = (id: string) => {
+    if (thoughts.length > 1) {
+      setThoughts(thoughts.filter(t => t.id !== id));
+    }
+  };
+
   const handleValidateAndSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setAiFeedback(null);
     
-    // Basic Validation
-    if (selectedLexicon.length === 0) {
-      setError('You must select at least one Lexicon term to maintain consistency.');
+    if (thoughts.some(t => t.text.trim() === '')) {
+      setError('All thoughts must contain text to be witnessed.');
       return;
     }
 
-    if ((stage === 'Gospels' || stage === 'Revelation') && !linkedStruggleId) {
-      setError(`Stage ${stage} must be linked to a specific Struggle (Lamentations).`);
+    if ((stage === 'Gospels' || stage === 'Revelation') && struggles.length > 0 && !linkedStruggleId) {
+      setError(`Stage ${stage} should be linked to a specific Struggle (Lamentations) if one exists.`);
       return;
     }
 
     setIsValidating(true);
-    const validation = await validateSubmission(content, anchor, lexicon, existingArticles);
+    // Combine thoughts for AI validation
+    const combinedContent = thoughts.map((t, i) => `Verse ${i + 1}: ${t.text}`).join('\n');
+    const validation = await validateSubmission(combinedContent, anchor, lexicon, existingArticles);
     setIsValidating(false);
     setAiFeedback(validation);
-
-    if (validation.verdict === 'APPROVED') {
-      // Auto-submit if approved? Or let user see feedback? 
-      // For now, let's just let them click 'Confirm' if they see approval.
-    }
   };
 
   const finalSubmit = () => {
     const newArticle: Article = {
       id: crypto.randomUUID(),
       title,
-      content,
+      thoughts,
       stage,
-      lexiconTerms: selectedLexicon,
+      lexiconTerms: Array.from(new Set(thoughts.filter(t => t.lexiconTermId).map(t => t.lexiconTermId!) as string[])),
       linkedStruggleId: linkedStruggleId || undefined,
       author,
       createdAt: Date.now()
     };
     onSubmit(newArticle);
-  };
-
-  const toggleLexicon = (id: string) => {
-    setSelectedLexicon(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
   };
 
   return (
@@ -88,33 +91,41 @@ export const SubmissionForm: React.FC<Props> = ({ anchor, lexicon, existingArtic
 
         <div className="form-group">
           <label>Title</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} required />
+          <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="The heading of this Witness..." />
         </div>
 
         <div className="form-group">
-          <label>Content</label>
-          <textarea value={content} onChange={(e) => setContent(e.target.value)} required rows={10} />
+          <label>The Chain of Thoughts (Verses)</label>
+          <div className="thoughts-list">
+            {thoughts.map((thought, index) => (
+              <div key={thought.id} className="thought-item-container">
+                <div className="thought-number">{index + 1}</div>
+                <div className="thought-inputs">
+                  <textarea 
+                    value={thought.text} 
+                    onChange={(e) => updateThought(thought.id, e.target.value, thought.lexiconTermId)}
+                    placeholder="Enter a distinct thought or observation..."
+                    rows={3}
+                    required
+                  />
+                  <select 
+                    value={thought.lexiconTermId || ''} 
+                    onChange={(e) => updateThought(thought.id, thought.text, e.target.value)}
+                  >
+                    <option value="">-- Anchor to Lexicon (Optional) --</option>
+                    {lexicon.map(l => <option key={l.id} value={l.id}>{l.term}</option>)}
+                  </select>
+                </div>
+                <button type="button" className="remove-thought" onClick={() => removeThought(thought.id)}>×</button>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="add-thought-btn" onClick={addThought}>+ Add Next Thought</button>
         </div>
 
         <div className="form-group">
           <label>Author</label>
-          <input value={author} onChange={(e) => setAuthor(e.target.value)} required />
-        </div>
-
-        <div className="form-group">
-          <label>Lexicon Terms (Select at least one)</label>
-          <div className="lexicon-picker">
-            {lexicon.map(term => (
-              <label key={term.id} className={`lexicon-item ${selectedLexicon.includes(term.id) ? 'selected' : ''}`}>
-                <input 
-                  type="checkbox" 
-                  checked={selectedLexicon.includes(term.id)} 
-                  onChange={() => toggleLexicon(term.id)} 
-                />
-                {term.term}
-              </label>
-            ))}
-          </div>
+          <input value={author} onChange={(e) => setAuthor(e.target.value)} required placeholder="Who bears this Witness?" />
         </div>
 
         {(stage === 'Gospels' || stage === 'Revelation') && (
@@ -132,15 +143,16 @@ export const SubmissionForm: React.FC<Props> = ({ anchor, lexicon, existingArtic
             )}
           </div>
         )}
+
         <button type="submit" className="submit-btn" disabled={isValidating}>
-          {isValidating ? 'Guardian is reviewing...' : 'Review with AI'}
+          {isValidating ? 'Guardian is reviewing the chain...' : 'Review with AI'}
         </button>
       </form>
 
       {aiFeedback && (
         <div className={`ai-feedback-panel ${aiFeedback.verdict.toLowerCase()}`}>
           <h3>Guardian Verdict: {aiFeedback.verdict}</h3>
-          <p>{aiFeedback.feedback}</p>
+          <p style={{ whiteSpace: 'pre-line' }}>{aiFeedback.feedback}</p>
           {aiFeedback.suggestedEdits && (
             <div className="suggested-edits">
               <h4>Suggested Refinement:</h4>

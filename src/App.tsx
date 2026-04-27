@@ -196,16 +196,21 @@ function App() {
                         onClick={() => handleArticleClick(article.id)}
                       >
                         <h4>{article.title}</h4>
-                        <p>{article.content.substring(0, 100)}...</p>
+                        <div className="thoughts-display">
+                          {article.thoughts.map((thought, i) => (
+                            <div key={thought.id} className="verse-item">
+                              <span className="verse-num">{i + 1}</span>
+                              <p className="verse-text">{thought.text}</p>
+                              {thought.lexiconTermId && (
+                                <span className="verse-lexicon">
+                                  #{state.lexicon.find(l => l.id === thought.lexiconTermId)?.term}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                         <div className="card-footer">
                           <small>{revelationMode ? 'Witnessed by:' : 'Author:'} {article.author}</small>
-                          <div className="lexicon-tags">
-                            {article.lexiconTerms.map(ltId => (
-                              <span key={ltId} className="lexicon-tag">
-                                #{state.lexicon.find(l => l.id === ltId)?.term}
-                              </span>
-                            ))}
-                          </div>
                         </div>
                       </div>
                     );

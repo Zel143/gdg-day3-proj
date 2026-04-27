@@ -11,13 +11,19 @@ export interface LexiconTerm {
   definition: string;
 }
 
+export interface Thought {
+  id: string;
+  text: string;
+  lexiconTermId?: string; // Optional anchor to a specific term
+}
+
 export interface Article {
   id: string;
   title: string;
-  content: string;
+  thoughts: Thought[];
   stage: NarrativeStage;
-  lexiconTerms: string[]; // IDs of LexiconTerms
-  linkedStruggleId?: string; // For Gospels and Revelation stages
+  lexiconTerms: string[]; // Still keep overall tags for high-level mapping
+  linkedStruggleId?: string; 
   author: string;
   createdAt: number;
 }

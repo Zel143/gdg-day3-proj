@@ -194,9 +194,45 @@ nav button.active {
   border-color: rgba(255,255,255,0.2);
 }
 
-.active-witness {
-  border-color: var(--sacred-gold);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.5), 0 0 20px rgba(255,204,0,0.2);
+/* --- VERSE DISPLAY --- */
+.thoughts-display {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.verse-item {
+  position: relative;
+  padding-left: 1.5rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.verse-num {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  opacity: 0.7;
+}
+
+.verse-lexicon {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  background: rgba(0,242,255,0.05);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+}
+
+.mode-revelation .verse-num, 
+.mode-revelation .verse-lexicon {
+  color: var(--sacred-gold);
 }
 
 /* --- GAP ANALYSIS --- */
