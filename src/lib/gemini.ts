@@ -2,24 +2,58 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NarrativeStage, LexiconTerm, Article } from "../types";
 
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+// Model fallback chain — ordered by speed/quota availability
+const MODEL_CHAIN = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-pro',
+  'gemini-2.0-flash-lite',
+  'gemini-2.0-flash',
+];
+
+// Try calling Gemini with automatic model fallback on quota/model errors
+async function callWithFallback(prompt: string, useJsonMode: boolean = false): Promise<string> {
+  let lastError: any = null;
+  
+  for (const modelName of MODEL_CHAIN) {
+    try {
+      console.log(`[Guardian] Trying model: ${modelName}...`);
+      
+      const modelConfig: any = { model: modelName };
+      if (useJsonMode) {
+        modelConfig.generationConfig = { responseMimeType: "application/json" };
+      }
+      
+      const currentModel = genAI.getGenerativeModel(modelConfig);
+      const result = await currentModel.generateContent(prompt);
+      const text = result.response.text();
+      
+      console.log(`[Guardian] ✅ ${modelName} responded (${text.length} chars)`);
+      return text;
+    } catch (error: any) {
+      lastError = error;
+      const msg = error?.message || '';
+      console.warn(`[Guardian] ❌ ${modelName} failed: ${msg.substring(0, 120)}`);
+      
+      // Only retry on quota/model errors, not on prompt issues
+      if (msg.includes('quota') || msg.includes('429') || msg.includes('model') || msg.includes('404') || msg.includes('not found')) {
+        continue; // Try next model
+      }
+      // For other errors (network, auth), don't bother trying other models
+      throw error;
+    }
+  }
+  
+  throw lastError || new Error("All models exhausted");
+}
 
 export async function askGemini(prompt: string) {
-  try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-  } catch (error) {
-    console.error("Error calling Gemini API:", error);
-    throw error;
-  }
+  return callWithFallback(prompt);
 }
 
 // ============================================================
 // THE "TRUTH PREVAILS" ENGINE — v2: Deep Analysis
-// ============================================================
-// Now with: contradiction detection, confidence scoring,
-// auto-lexicon suggestion, and coherence scoring.
 // ============================================================
 
 export interface ThoughtAnalysis {
@@ -28,9 +62,9 @@ export interface ThoughtAnalysis {
   originalText: string;
   refinedText: string;
   reason: string;
-  confidence: number; // 0-100: how confident is the Guardian in this classification
-  contradictions: string[]; // any contradictions with existing canon
-  suggestedLexiconTerms: string[]; // lexicon term names that should be anchored
+  confidence: number;
+  contradictions: string[];
+  suggestedLexiconTerms: string[];
 }
 
 export interface AnalysisResult {
@@ -40,8 +74,8 @@ export interface AnalysisResult {
   verdict: 'APPROVED' | 'REVISION REQUIRED';
   canonAlignment: string;
   suggestedEdits: string | null;
-  coherenceScore: number; // 0-100: overall coherence with the existing canon
-  contradictions: string[]; // system-level contradictions
+  coherenceScore: number;
+  contradictions: string[];
 }
 
 export async function analyzeAndRefine(
@@ -53,7 +87,6 @@ export async function analyzeAndRefine(
 ): Promise<AnalysisResult> {
   const lexiconList = lexicon.map(l => `"${l.term}": ${l.definition}`).join('\n');
   
-  // Build canon summary from thoughts
   const canonSummary = existingArticles.map(a => {
     const thoughtsText = a.thoughts
       .map((t, i) => `  Verse ${i + 1}: ${t.refinedText || t.text}`)
@@ -69,87 +102,87 @@ export async function analyzeAndRefine(
   const strugglesList = struggles.map(s => `- ID: "${s.id}" | Title: "${s.title}"`).join('\n');
 
   const prompt = `
-You are the Guardian of the Canon — a truth-seeking intelligence that sees through every narrative style to find the raw truth beneath. Your purpose: let the truth prevail regardless of how it is expressed.
+You are the Guardian of the Canon — a truth-seeking intelligence that sees through every narrative style to find the raw truth beneath.
 
-A user has submitted a chain of thoughts. They have NOT chosen a narrative stage. YOU must determine the truth of each thought with DEEP ANALYSIS.
+A user has submitted thoughts. Classify each thought, refine its text, and analyze alignment.
 
 THE FIVE STAGES:
-- Genesis: Foundational truths, axioms, first principles. The bedrock.
-- Leviticus: Protocols, rules, standards, governance. The law.
-- Lamentations: Struggles, gaps, contradictions, pain points. The honest cry.
-- Gospels: Resolutions, answers, healing, solutions. The good news.
-- Revelation: Future vision, convergence, prophecy. The horizon.
+- Genesis: Foundational truths, axioms, first principles.
+- Leviticus: Protocols, rules, standards, governance.
+- Lamentations: Struggles, gaps, contradictions, pain points.
+- Gospels: Resolutions, answers, healing, solutions.
+- Revelation: Future vision, convergence, prophecy.
 
-CORE ANCHOR (The North Star — all truth must orbit this):
-"${anchor}"
+CORE ANCHOR: "${anchor}"
 
-ACTIVE LEXICON (The Shared Language):
-${lexiconList || "No terms defined yet."}
+LEXICON: ${lexiconList || "None yet."}
 
-THE EXISTING CANON (The Sacred History):
-${existingArticles.length > 0 ? canonSummary : "The Canon is currently empty. This is a founding submission."}
+EXISTING CANON: ${existingArticles.length > 0 ? canonSummary : "Empty — this is a founding submission."}
 
-ACTIVE STRUGGLES (Lamentations that may be resolved by this submission):
-${struggles.length > 0 ? strugglesList : "No active struggles."}
+STRUGGLES: ${struggles.length > 0 ? strugglesList : "None."}
 
-SUBMISSION TITLE: "${title}"
+TITLE: "${title}"
 
-RAW THOUGHTS FROM USER:
+THOUGHTS:
 ${thoughtsForPrompt}
 
-YOUR DEEP ANALYSIS DUTIES:
+INSTRUCTIONS:
+1. Classify each thought into a stage.
+2. Rate confidence 0-100 for each classification.
+3. Refine each thought to canonical tone (preserve meaning, elevate expression).
+4. Check for contradictions with existing canon.
+5. Suggest relevant lexicon terms for each thought.
+6. Determine the primary stage and overall coherence score (0-100).
+7. If coherenceScore >= 60 and no critical contradictions, verdict = "APPROVED", otherwise "REVISION REQUIRED".
+8. If this resolves a struggle, set linkedStruggleId to its ID.
 
-1. TRUTH EXTRACTION: See through the narrative style. Whether casual, poetic, technical, or emotional — extract the TRUTH.
-
-2. CLASSIFICATION + CONFIDENCE: Classify each thought into its true stage AND rate your confidence (0-100). Low confidence means the thought is ambiguous or could belong to multiple stages.
-
-3. CONTRADICTION DETECTION: For EACH thought, check if it contradicts anything in the existing Canon. If a thought says "X is true" but the Canon already contains "X is false", flag it. Be specific — quote the conflicting canonical text.
-
-4. REFINEMENT: Rewrite each thought with canonical weight — dignified, clear, aligned with the Anchor. Do NOT change the meaning, only elevate the expression.
-
-5. LEXICON MAPPING: For each thought, identify which Lexicon terms are conceptually relevant (even if the user didn't explicitly use them). Return the TERM NAMES, not IDs.
-
-6. STRUGGLE RESOLUTION: If any thought resolves an existing Struggle, identify which one by its ID.
-
-7. COHERENCE SCORING: Rate the overall coherence (0-100) of this submission against the entire existing Canon. Consider: Does it fit? Does it advance the narrative? Does it introduce noise?
-
-8. VERDICT: Only issue "APPROVED" if coherenceScore >= 60 AND no critical contradictions exist. Otherwise "REVISION REQUIRED".
-
-Respond in this EXACT JSON format (no markdown fences, just raw JSON):
+Return ONLY valid JSON matching this schema:
 {
   "primaryStage": "Genesis",
   "linkedStruggleId": null,
   "coherenceScore": 85,
-  "contradictions": ["System-level contradiction description if any"],
+  "contradictions": [],
   "thoughtAnalysis": [
     {
       "verseIndex": 0,
       "assignedStage": "Genesis",
       "confidence": 92,
-      "originalText": "...",
-      "refinedText": "...",
-      "reason": "Why this thought belongs to this stage",
-      "contradictions": ["Specific contradiction with existing canon, or empty array"],
-      "suggestedLexiconTerms": ["TermName1", "TermName2"]
+      "originalText": "the original text",
+      "refinedText": "The refined canonical text",
+      "reason": "Why this stage",
+      "contradictions": [],
+      "suggestedLexiconTerms": ["TermName"]
     }
   ],
   "verdict": "APPROVED",
-  "canonAlignment": "Detailed analysis of how this submission aligns with the Anchor and existing Canon",
+  "canonAlignment": "Alignment analysis text",
   "suggestedEdits": null
 }`;
 
+  console.log("[Guardian] Starting analysis with", thoughts.length, "thoughts...");
+
   try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    
+    // Try with JSON mode first, fall back to raw text parsing
+    let text: string;
+    try {
+      text = await callWithFallback(prompt, true);
+    } catch {
+      console.log("[Guardian] JSON mode failed, trying raw text mode...");
+      text = await callWithFallback(prompt, false);
+    }
+
+    // Extract JSON from response
     const startIdx = text.indexOf('{');
     const endIdx = text.lastIndexOf('}');
     
-    if (startIdx === -1 || endIdx === -1) throw new Error("No JSON found in Guardian response");
-    
-    const json = JSON.parse(text.substring(startIdx, endIdx + 1));
+    if (startIdx === -1 || endIdx === -1) {
+      console.error("[Guardian] No JSON found. Response:", text.substring(0, 300));
+      throw new Error("No JSON in response");
+    }
 
-    // Normalize the thought analysis to ensure all fields exist
+    const json = JSON.parse(text.substring(startIdx, endIdx + 1));
+    console.log("[Guardian] ✅ Analysis complete. Verdict:", json.verdict, "| Coherence:", json.coherenceScore);
+
     const normalizedAnalysis: ThoughtAnalysis[] = (json.thoughtAnalysis || []).map((ta: any, i: number) => ({
       verseIndex: ta.verseIndex ?? i,
       assignedStage: ta.assignedStage as NarrativeStage,
@@ -171,9 +204,8 @@ Respond in this EXACT JSON format (no markdown fences, just raw JSON):
       coherenceScore: typeof json.coherenceScore === 'number' ? json.coherenceScore : 75,
       contradictions: Array.isArray(json.contradictions) ? json.contradictions : [],
     };
-  } catch (error) {
-    console.error("Guardian analysis failed:", error);
-    // Graceful fallback — allow passage with original text
+  } catch (error: any) {
+    console.error("[Guardian] FAILED:", error?.message || error);
     return {
       primaryStage: 'Genesis' as NarrativeStage,
       linkedStruggleId: null,
