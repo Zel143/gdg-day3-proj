@@ -45,6 +45,15 @@ function App() {
     setView('dashboard');
   };
 
+  const addLexiconTerm = async (term: string, definition: string) => {
+    const newTerm = { id: crypto.randomUUID(), term, definition };
+    const newState = {
+      ...state,
+      lexicon: [...state.lexicon, newTerm]
+    };
+    await updateCanon(newState);
+  };
+
   const handleArticleClick = (id: string) => {
     setFocusedId(prev => prev === id ? null : id);
   };
@@ -83,20 +92,50 @@ function App() {
           />
         </div>
         <nav>
-          <button onClick={() => setView('dashboard')}>Dashboard</button>
-          <button onClick={() => setView('submit')}>Submit Witness</button>
+          <button className={view === 'dashboard' ? 'active' : ''} onClick={() => setView('dashboard')}>Dashboard</button>
+          <button className={view === 'submit' ? 'active' : ''} onClick={() => setView('submit')}>Submit Witness</button>
         </nav>
       </header>
 
       <main>
         {view === 'dashboard' ? (
           <section className="dashboard">
+            {/* LEXICON SECTION */}
+            <div className="lexicon-dashboard">
+              <div className="lexicon-header">
+                <h3>{revelationMode ? 'The Sacred Lexicon' : 'Shared Lexicon'}</h3>
+                <button 
+                  className="add-term-btn"
+                  onClick={() => {
+                    const term = prompt("Enter new term:");
+                    const def = prompt("Enter definition:");
+                    if (term && def) addLexiconTerm(term, def);
+                  }}
+                >
+                  + Add Term
+                </button>
+              </div>
+              <div className="lexicon-grid">
+                {state.lexicon.map(l => (
+                  <div key={l.id} className="lexicon-card">
+                    <span className="term-name">#{l.term}</span>
+                    <p className="term-def">{l.definition}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="dashboard-header">
               <h2>{revelationMode ? 'The Sacred Map' : 'System Canon Map'}</h2>
               <div className="coherence-meter">
                 <span className="meter-label">{revelationMode ? 'Fullness:' : 'System Integrity:'}</span>
                 <span className="meter-value">
-                  {Math.round((state.articles.filter(a => a.stage === 'Gospels').length / Math.max(state.articles.filter(a => a.stage === 'Lamentations').length, 1)) * 100)}%
+                  {(() => {
+                    const struggles = state.articles.filter(a => a.stage === 'Lamentations').length;
+                    const resolutions = state.articles.filter(a => a.stage === 'Gospels').length;
+                    if (struggles === 0) return resolutions > 0 ? '100%' : '0%';
+                    return Math.round((resolutions / struggles) * 100) + '%';
+                  })()}
                 </span>
               </div>
             </div>
